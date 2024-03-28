@@ -1,13 +1,15 @@
 program test_forwarddiff
-  use forwarddiff, only: wp, derivative, grad
+  use forwarddiff, only: wp, derivative, grad, jacobian
   implicit none
-  call test()
+  call test_dual()
+  call test_jacobian1()
 
 contains
 
-  subroutine test()
+  subroutine test_dual()
     real(wp) :: x, f, dfdx
     real(wp) :: xx(2), dfdx1(2)
+    character(:), allocatable :: err
 
     open(unit=2,file='test.dat',status='replace',form='unformatted')
 
@@ -27,12 +29,12 @@ contains
     write(2) f, dfdx
 
     xx = [1.0_wp, 2.0_wp]
-    call grad(func_grad1, xx, f, dfdx1)
+    call grad(func_grad1, xx, f, dfdx1, err)
     print*,f, dfdx1
     write(2) f, dfdx1
 
     xx = [3.0_wp, 4.0_wp]
-    call grad(func_grad2, xx, f, dfdx1)
+    call grad(func_grad2, xx, f, dfdx1, err)
     print*,f, dfdx1
     write(2) f, dfdx1
 
@@ -99,5 +101,76 @@ contains
     type(dual) :: res
     res = sum(x*3.14_wp)
   end function
+
+  subroutine test_jacobian1()
+    real(wp) :: u(3), f(3), dfdu(3,3)
+    real(wp) :: f1(3), dfdu1(3,3)
+    character(:), allocatable :: err
+
+    u = [1.0_wp, 2.0_wp, 3.0_wp]
+    call jacobian(rhs_rober_dual, u, f, dfdu, err)
+
+    print*,f
+    print*,''
+    print*,dfdu(:,1)
+    print*,dfdu(:,2)
+    print*,dfdu(:,3)
+
+    ! Check against analytical solution
+    call rhs_rober(u, f1)
+    call jac_rober(u, dfdu1)
+
+    if (.not. all(f == f1)) then
+      error stop "test_jacobian1 failed"
+    endif
+    if (.not. all(dfdu == dfdu1)) then
+      error stop "test_jacobian1 failed"
+    endif
+
+  end subroutine
+
+  subroutine rhs_rober_dual(u, du)
+    use forwarddiff_dual
+    type(dual), intent(in) :: u(:)
+    type(dual), intent(out) :: du(:)
+
+    real(wp), parameter :: k1 = 0.04_wp, &
+                           k2 = 3.0e7_wp, &
+                           k3 = 1.0e4_wp
+    
+    du(1) = -k1*u(1) + k3*u(2)*u(3)
+    du(2) =  k1*u(1) - k2*u(2)**2.0_wp - k3*u(2)*u(3)
+    du(3) =  k2*u(2)**2.0_wp
+
+  end subroutine
+
+  subroutine rhs_rober(u, du)
+    use forwarddiff_dual
+    real(wp), intent(in) :: u(:)
+    real(wp), intent(out) :: du(:)
+
+    real(wp), parameter :: k1 = 0.04_wp, &
+                           k2 = 3.0e7_wp, &
+                           k3 = 1.0e4_wp
+    
+    du(1) = -k1*u(1) + k3*u(2)*u(3)
+    du(2) =  k1*u(1) - k2*u(2)**2.0_wp - k3*u(2)*u(3)
+    du(3) =  k2*u(2)**2.0_wp
+
+  end subroutine
+  
+  subroutine jac_rober(u, pd)
+    real(wp), intent(in) :: u(:)
+    real(wp), intent(out) :: pd(:,:)
+
+    real(wp), parameter :: k1 = 0.04_wp, &
+                           k2 = 3.0e7_wp, &
+                           k3 = 1.0e4_wp
+    
+    pd(:,1) = [-k1, k1, 0.0_wp]
+    pd(:,2) = [k3*u(3), -2.0_wp*k2*u(2) - k3*u(3), 2.0_wp*k2*u(2)]
+    pd(:,3) = [k3*u(2), -k3*u(2), 0.0_wp]
+    
+  end subroutine
 
 end program
