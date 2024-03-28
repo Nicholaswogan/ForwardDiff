@@ -1,5 +1,5 @@
 program test_forwarddif
-  use forwarddif, only: dual, dp
+  use dnadmod, only: dual, dp => wp
   implicit none
   abstract interface
     function fcn_normal_sig(x) result(res)
@@ -14,14 +14,14 @@ program test_forwarddif
 contains
 
   subroutine test()
-    use forwarddif, only: derivative
+    use dnadmod, only: derivative
     implicit none
     real(dp) :: x, fcn_x, dfcn_x
     integer :: i, n
     real(dp) :: t(2), tmp, res(2)
 
     x = 2.0_dp
-    n = 100000000
+    n = 10000000
 
     ! Autodiff
     tmp = 0.0_dp
@@ -57,7 +57,7 @@ contains
   end subroutine
 
   subroutine finite_difference(fcn, x, eps, fcn_x, dfcn_x)
-    use forwarddif, only: fcn_sig
+    use dnadmod, only: fcn_sig
     procedure(fcn_normal_sig) :: fcn
     real(dp), intent(in) :: x
     real(dp), intent(in) :: eps
@@ -76,7 +76,7 @@ contains
   end function 
 
   function func_dual(x) result(res)
-    use forwarddif
+    use dnadmod
     type(dual), intent(in) :: x
     type(dual) :: res
     res = sin(x + x**2.0_dp)
