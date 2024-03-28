@@ -5,6 +5,7 @@ module forwarddiff_dual
   private
   
   public :: dual
+  public :: initialize_dual_array
 
   public :: assignment (=)
   public :: operator (+), operator (-)
@@ -25,6 +26,12 @@ module forwarddiff_dual
   end type
   interface dual
     module procedure :: create_dual1
+  end interface
+
+  interface initialize_dual_array
+    module procedure :: initialize_dual_array_1
+    module procedure :: initialize_dual_array_2
+    module procedure :: initialize_dual_array_3
   end interface
       
   !~~~ operator overloading ~~~!
@@ -215,6 +222,39 @@ contains
     type(dual) :: b
     allocate(b%der(ndv))
   end function
+
+  subroutine initialize_dual_array_1(arr, ndv)
+    type(dual), intent(inout) :: arr(:)
+    integer, intent(in) :: ndv
+    integer :: i
+    do i = 1,size(arr)
+      allocate(arr(i)%der(ndv))
+    enddo
+  end subroutine
+
+  subroutine initialize_dual_array_2(arr, ndv)
+    type(dual), intent(inout) :: arr(:,:)
+    integer, intent(in) :: ndv
+    integer :: i, j
+    do i = 1,size(arr,2)
+      do j = 1,size(arr,1)
+        allocate(arr(j,i)%der(ndv))
+      enddo
+    enddo
+  end subroutine
+
+  subroutine initialize_dual_array_3(arr, ndv)
+    type(dual), intent(inout) :: arr(:,:,:)
+    integer, intent(in) :: ndv
+    integer :: i, j, k
+    do i = 1,size(arr,3)
+      do j = 1,size(arr,2)
+        do k = 1,size(arr,1)
+          allocate(arr(k,j,i)%der(ndv))
+        enddo
+      enddo
+    enddo
+  end subroutine
 
   !~~~ assignment ~~~!
 
