@@ -1,106 +1,4 @@
-!******************************************************************************
-!* Dual Number Automatic Differentiation (DNAD) of Fortran Codes
-!*-----------------------------------------------------------------------------
-!* COPYRIGHT (c) Joshua Hodson, All rights reserved, you are free to copy,
-!* modify, or translate this code to other languages such as c/c++. This is a
-!* fork of the original Fortran DNAD module developed by Dr. Wenbin Yu. See
-!* original copyright information below. You can download the original version
-!* at https://cdmhub.org/resources/374
-!*
-!* COPYRIGHT (c) Wenbin Yu, All rights reserved, you are free to copy,
-!* modify or translate this code to other languages such as c/c++. If
-!* you find a bug please let me know through wenbinyu.heaven@gmail.com. If
-!* you added new functions and want to share with others, please let me know
-!* too. You are welcome to share your successful stories with us through
-!* http://groups.google.com/group/hifi-comp.
-!******************************************************************************
-!* Acknowledgements
-!*-----------------------------------------------------------------------------
-!* The development of DNAD is supported, in part, by the Chief Scientist
-!* Innovative Research Fund at AFRL/RB WPAFB, and by Department of Army
-!* SBIR (Topic A08-022) through Advanced Dynamics Inc. The views and
-!* conclusions contained herein are those of the authors and should not be
-!* interpreted as necessarily representing the official policies or
-!* endorsement, either expressed or implied, of the funding agency.
-!*
-!* Additional development of DNAD has been supported under a Department of
-!* Energy (DOE) Nuclear Energy University Program (NEUP) Graduate Fellowship.
-!* Any opinions, findings, conclusions or recommendations expressed in this
-!* publication are those of the authors and do not necessarily reflect the
-!* views of the Department of Energy Office of Nuclear Energy.
-!******************************************************************************
-!* Citation
-!*-----------------------------------------------------------------------------
-!* Your citation of the following two papers is appreciated:
-!* Yu, W. and Blair, M.: "DNAD, a Simple Tool for Automatic Differentiation of
-!* Fortran Codes Using Dual Numbers," Computer Physics Communications, vol.
-!* 184, 2013, pp. 1446-1452.
-!*
-!* Spall, R. and Yu, W.: "Imbedded Dual-Number Automatic Differentiation for
-!* CFD Sensitivity Analysis," Journal of Fluids Engineering, vol. 135, 2013,
-!* 014501.
-!******************************************************************************
-!* Quick Start Guide
-!*-----------------------------------------------------------------------------
-!* To integrate DNAD into an existing Fortran program, do the following:
-!*
-!*   1. Include the DNAD module in the source files by adding "use dnadmod" to
-!*      the beginning of all modules, global functions, and global subroutines
-!*      that include definitions of floating-point variables.
-!*   2. Redefine all floating-point variables as type(dual). This can be done
-!*      using precompiler directives so that the integration can be turned on
-!*      or off at compile-time, eliminating the need for maintaining two
-!*      separate code bases for the same project.
-!*   3. All I/O involving floating-point variables will need to be examined.
-!*      A method will need to be determined for inputting and outputting
-!*      derivative values. This customization is typically unique for each
-!*      piece of software and needs to be determined on a case-by-case basis.
-!*   4. When compiling DNAD, use the compiler option "-Dndv=#", where # is the
-!*      number of design variables desired. This sizes the derivative array
-!*      that is stored with each floating point number.
-!*   5. When compiling DNAD, use compiler options to specify precision. If no
-!*      compiler options are specified, DNAD will default to single-precision
-!*      floating-point arithmetic. Most popular Fortran compilers provide
-!*      options for specifying precision at compile-time so that it does not
-!*      have to be hard-coded into the source code. For example, use the
-!*      "-fdefault-real-8" compiler in gfortran or the "-r8" compiler option
-!*      with Intel Fortran to compile DNAD as double-precision.
-!*   6. Modify the compilation process for the target software to include the
-!*      DNAD module in the resulting executable or library.
-!******************************************************************************
-!* Change Log
-!*-----------------------------------------------------------------------------
-!*
-!*  2016-04-29  Joshua Hodson
-!*  - Updated copyright, acknowledgments, and quick start guide.
-!*  - Removed overloads for single-precision reals.
-!*  - Added tan, dtan, atan, and atan2 intrinsic function overloads.
-!*  - Removed macro for precision and defined all floating-point variables as
-!*    default real. Compiler options can now be used to set precision.
-!*  - Added checks for undefined derivatives when only constants are used in
-!*    the calculation (i.e. all partial derivatives are zero). This limits the
-!*    perpetuation of NaN values in the code.
-!*  - Combined the header and source files into a single file.
-!*
-!*  2015-07-29  Joshua Hodson
-!*  - Added maxloc intrinsic function overload.
-!*  - Converted UPPERCASE to lowercase for readability.
-!*  - Added macros for defining precision and number of design variables.
-!*  - Renamed module from Dual_Num_Auto_Diff to dnadmod
-!*  - Renamed dual number type from DUAL_NUM to dual
-!*  - Renamed components of dual number type from (xp_ad_, xp_ad_) to (x, dx)
-!*
-!*  2014-06-05  Wenbin Yu
-!*  - Forked from original DNAD repository, see https://cdmhub.org/resources/374
-!*
-!******************************************************************************
-
-! Number of design variables (default = 1)
-#ifndef ndv
-#define ndv 1
-#endif
-
-module dnadmod
+module forwarddiff_dual
 
     implicit none
 
@@ -112,9 +10,8 @@ module dnadmod
                         ! variables which can be accessed using D%x and D%dx in
                         ! other units using this module in which D is defined
                         ! as type(dual).
-        sequence
         real :: x  ! functional value
-        real :: dx(ndv)  ! derivative
+        real, allocatable :: dx(:)  ! derivative
     end type dual
 
 
@@ -1815,4 +1712,4 @@ contains
 
     end function set_NaN
 
-end module dnadmod
+end module
