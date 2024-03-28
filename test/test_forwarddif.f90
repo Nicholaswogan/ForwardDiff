@@ -1,24 +1,34 @@
 program test_forwarddif
-  use forwarddif, only: wp, derivative
+  use forwarddif, only: wp, derivative, grad
   implicit none
   call test()
 
 contains
 
   subroutine test()
-    real(wp) :: fcn_x, dfcn_x
-    real(wp) :: t(2)
+    real(wp) :: x, f, dfdx
+    real(wp) :: xx(2), dfdx1(2)
 
-    call cpu_time(t(1))
-    call derivative(func_operators, 10.0_wp, fcn_x, dfcn_x)
-    call cpu_time(t(2))
-    print*,fcn_x, dfcn_x, (t(2) - t(1))
+    x = 10.0_wp
+    call derivative(func_operators, x, f, dfdx)
+    print*,f, dfdx
 
-    call cpu_time(t(1))
-    call derivative(func_intrinsics, 10.0_wp, fcn_x, dfcn_x)
-    call cpu_time(t(2))
-    print*,fcn_x, dfcn_x, (t(2) - t(1))
-    
+    x = 10.0_wp
+    call derivative(func_intrinsics1, x, f, dfdx)
+    print*,f, dfdx
+
+    x = 0.1_wp
+    call derivative(func_intrinsics2, x, f, dfdx)
+    print*,f, dfdx
+
+    xx = [1.0_wp, 2.0_wp]
+    call grad(func_grad1, xx, f, dfdx1)
+    print*,f, dfdx1
+
+    xx = [1.0_wp, 2.0_wp]
+    call grad(func_grad2, xx, f, dfdx1)
+    print*,f, dfdx1
+
   end subroutine
 
   function func_operators(x) result(res)
@@ -34,7 +44,7 @@ contains
 
   end function
 
-  function func_intrinsics(x) result(res)
+  function func_intrinsics1(x) result(res)
     use forwarddif_dual
     type(dual), intent(in) :: x
     type(dual) :: res
@@ -50,6 +60,35 @@ contains
 
   end function
 
-  
+  function func_intrinsics2(x) result(res)
+    use forwarddif_dual
+    type(dual), intent(in) :: x
+    type(dual) :: res
+
+    res = acos(x)
+    res = res + asin(x)
+    res = res + atan(x)
+    res = max(res, x)
+    res = max(res, 1.0_wp)
+    res = max(1.0_wp, res)
+    res = min(res, res)
+    res = min(res, 2.0_wp)
+    res = min(2.0_wp, res)
+
+  end function
+
+  function func_grad1(x) result(res)
+    use forwarddif_dual
+    type(dual), intent(in) :: x(:)
+    type(dual) :: res
+    res = x(1)*x(1)*x(2) + x(1) + x(2)
+  end function
+
+  function func_grad2(x) result(res)
+    use forwarddif_dual
+    type(dual), intent(in) :: x(:)
+    type(dual) :: res
+    res = sum(x*3.14_wp)
+  end function
 
 end program

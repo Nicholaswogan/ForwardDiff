@@ -16,8 +16,8 @@ module forwarddif_dual
 
   public :: abs, acos, asin, atan, atan2
   public :: cos, exp, int, log, log10
-  public :: max, maxval, min, minval, nint
-  public :: sign, sin, tan, sqrt, sum, maxloc
+  public :: max, maxval, min, minval
+  public :: sin, tan, sqrt, sum, maxloc
   
   type :: dual
     real(wp) :: val
@@ -173,25 +173,17 @@ module forwarddif_dual
   end interface
   
   interface maxval
-      module procedure :: maxval_d
+    module procedure :: maxval_d
   end interface
 
   interface min
-      module procedure :: min_dd
-      module procedure :: min_dr
+    module procedure :: min_dd
+    module procedure :: min_dr
+    module procedure :: min_rd
   end interface
   
   interface minval
-      module procedure :: minval_d
-  end interface
-  
-  interface nint
-      module procedure :: nint_d
-  end interface
-  
-  interface sign
-    module procedure :: sign_dd
-    module procedure :: sign_rd
+    module procedure :: minval_d
   end interface
   
   interface sin
@@ -850,6 +842,7 @@ contains
     if (u%val > i) then
       res = u
     else
+      allocate(res%der(size(u%der)))
       res = i
     endif
 
@@ -863,6 +856,7 @@ contains
     if (u%val > r) then
       res = u
     else
+      allocate(res%der(size(u%der)))
       res = r
     endif
 
@@ -876,6 +870,7 @@ contains
     if (u%val > n) then
       res = u
     else
+      allocate(res%der(size(u%der)))
       res = n
     endif
 
@@ -918,7 +913,22 @@ contains
     if (u%val < r) then
       res = u
     else
+      allocate(res%der(size(u%der)))
       res = r
+    endif
+
+  end function
+
+  elemental function min_rd(n, u) result(res)
+    real(wp), intent(in) :: n
+    type(dual), intent(in) :: u
+    type(dual) :: res
+
+    if (u%val < n) then
+      res = u
+    else
+      allocate(res%der(size(u%der)))
+      res = n
     endif
 
   end function
@@ -930,39 +940,6 @@ contains
 
     i = minloc(u%val, 1)
     res = u(i)
-
-  end function
-
-  elemental function nint_d(u) result(res)
-    type(dual), intent(in) :: u
-    integer :: res
-
-    res = nint(u%val)
-
-  end function
-
-  elemental function sign_dd(val1, val2) result(res)
-    type(dual), intent(in) :: val1, val2
-    type(dual) :: res
-
-    if (val2%val < 0.0_wp) then
-      res = -abs(val1)
-    else
-      res = abs(val1)
-    endif
-
-  end function
-
-  elemental function sign_rd(val1, val2) result(res)
-    real(wp), intent(in) :: val1
-    type(dual), intent(in) :: val2
-    type(dual) :: res
-
-    if (val2%val < 0.0_wp) then
-      res = -abs(val1)
-    else
-      res = abs(val1)
-    endif
 
   end function
 
