@@ -6,5 +6,3 @@ add_library(forwarddif forwarddif.f90)
 
 add_executable(test_forwarddif test_forwarddif.f90)
 target_link_libraries(test_forwarddif forwarddif)
-
-add_executable(test1 test1.f90)
