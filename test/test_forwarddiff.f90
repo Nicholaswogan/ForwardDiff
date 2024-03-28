@@ -1,5 +1,5 @@
-program test_forwarddif
-  use forwarddif, only: wp, derivative, grad
+program test_forwarddiff
+  use forwarddiff, only: wp, derivative, grad
   implicit none
   call test()
 
@@ -9,30 +9,39 @@ contains
     real(wp) :: x, f, dfdx
     real(wp) :: xx(2), dfdx1(2)
 
+    open(unit=2,file='test.dat',status='replace',form='unformatted')
+
     x = 10.0_wp
     call derivative(func_operators, x, f, dfdx)
     print*,f, dfdx
+    write(2) f, dfdx
 
     x = 10.0_wp
     call derivative(func_intrinsics1, x, f, dfdx)
     print*,f, dfdx
+    write(2) f, dfdx
 
     x = 0.1_wp
     call derivative(func_intrinsics2, x, f, dfdx)
     print*,f, dfdx
+    write(2) f, dfdx
 
     xx = [1.0_wp, 2.0_wp]
     call grad(func_grad1, xx, f, dfdx1)
     print*,f, dfdx1
+    write(2) f, dfdx1
 
-    xx = [1.0_wp, 2.0_wp]
+    xx = [3.0_wp, 4.0_wp]
     call grad(func_grad2, xx, f, dfdx1)
     print*,f, dfdx1
+    write(2) f, dfdx1
+
+    close(2)
 
   end subroutine
 
   function func_operators(x) result(res)
-    use forwarddif_dual
+    use forwarddiff_dual
     type(dual), intent(in) :: x
     type(dual) :: res
 
@@ -45,7 +54,7 @@ contains
   end function
 
   function func_intrinsics1(x) result(res)
-    use forwarddif_dual
+    use forwarddiff_dual
     type(dual), intent(in) :: x
     type(dual) :: res
 
@@ -61,7 +70,7 @@ contains
   end function
 
   function func_intrinsics2(x) result(res)
-    use forwarddif_dual
+    use forwarddiff_dual
     type(dual), intent(in) :: x
     type(dual) :: res
 
@@ -78,14 +87,14 @@ contains
   end function
 
   function func_grad1(x) result(res)
-    use forwarddif_dual
+    use forwarddiff_dual
     type(dual), intent(in) :: x(:)
     type(dual) :: res
     res = x(1)*x(1)*x(2) + x(1) + x(2)
   end function
 
   function func_grad2(x) result(res)
-    use forwarddif_dual
+    use forwarddiff_dual
     type(dual), intent(in) :: x(:)
     type(dual) :: res
     res = sum(x*3.14_wp)

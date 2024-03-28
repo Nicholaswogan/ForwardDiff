@@ -1,6 +1,6 @@
-module forwarddif_derivative
-  use forwarddif_const, only: wp
-  use forwarddif_dual, only: dual
+module forwarddiff_derivative
+  use forwarddiff_const, only: wp
+  use forwarddiff_dual, only: dual
   implicit none
   private
 

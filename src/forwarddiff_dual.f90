@@ -1,6 +1,6 @@
-module forwarddif_dual
+module forwarddiff_dual
   use ieee_arithmetic, only: ieee_value, ieee_quiet_nan
-  use forwarddif_const, only: wp
+  use forwarddiff_const, only: wp
   implicit none
   private
   
