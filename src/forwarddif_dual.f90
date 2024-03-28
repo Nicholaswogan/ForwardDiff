@@ -280,7 +280,7 @@ contains
     type(dual), intent(in) :: u
     real(wp), intent(in) :: r
     type(dual) :: res
-    res%val = u%val + r
+    res%val = r + u%val
     res%der = u%der
   end function
 
@@ -296,7 +296,8 @@ contains
     real(wp), intent(in) :: r
     type(dual), intent(in) :: v
     type(dual) :: res
-    res = v + r
+    res%val = r + v%val
+    res%der = v%der
   end function
 
   !~~~ subtraction ~~~!
