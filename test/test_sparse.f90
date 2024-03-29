@@ -2,13 +2,16 @@
 program main
   use forwarddiff, only: wp, jacobian
   implicit none
-  integer, parameter :: nz = 7
+  integer, parameter :: nz = 6
 
-  call test_banded()
+  ! call test_banded()
+  call test_blockdiagonal1()
+  call test_blockdiagonal2()
 
 contains
 
   subroutine test_banded()
+    use forwarddiff, only: BandedJacobian
     integer, parameter :: bandwidth = 3
     real(wp) :: u(nz), f(nz), dfdu(bandwidth,nz)
     real(wp) :: f1(nz), dfdu1(nz,nz)
@@ -18,7 +21,7 @@ contains
     do i = 1,nz
       u(i) = i
     enddo
-    call jacobian(rhs_banded_dual, u, f, dfdu, bandwidth=bandwidth, err=err)
+    call jacobian(rhs_banded_dual, u, f, dfdu, jt=BandedJacobian, bandwidth=bandwidth, err=err)
     if (allocated(err)) then
       print*,err
       stop
@@ -81,6 +84,109 @@ contains
     pd(nz,nz) = -1.0_wp
     pd(nz-1,nz) = 3.0_wp
     
+  end subroutine
+
+  subroutine test_blockdiagonal1()
+    use forwarddiff, only: BlockDiagonalJacobian
+    integer, parameter :: blocksize = 2
+    real(wp) :: u(nz), f(nz), dfdu(blocksize,nz)
+    real(wp) :: dfdu1(nz,nz)
+    character(:), allocatable :: err
+    integer :: i
+
+    do i = 1,nz
+      u(i) = i
+    enddo
+    call jacobian(rhs_blocked1_dual, u, f, dfdu, jt=BlockDiagonalJacobian, blocksize=blocksize, err=err)
+    if (allocated(err)) then
+      print*,err
+      stop 1
+    endif
+
+    print*,''
+    do i = 1,blocksize
+      print*,dfdu(i,:) 
+    enddo
+
+    call jacobian(rhs_blocked1_dual, u, f, dfdu1, err=err)
+    if (allocated(err)) then
+      print*,err
+      stop 1
+    endif
+
+    print*,''
+    do i = 1,nz
+      print*,dfdu1(i,:) 
+    enddo
+
+  end subroutine
+
+  subroutine test_blockdiagonal2()
+    use forwarddiff, only: BlockDiagonalJacobian
+    integer, parameter :: blocksize = 3
+    real(wp) :: u(nz), f(nz), dfdu(blocksize,nz)
+    real(wp) :: dfdu1(nz,nz)
+    character(:), allocatable :: err
+    integer :: i
+
+    do i = 1,nz
+      u(i) = i
+    enddo
+    call jacobian(rhs_blocked2_dual, u, f, dfdu, jt=BlockDiagonalJacobian, blocksize=blocksize, err=err)
+    if (allocated(err)) then
+      print*,err
+      stop 1
+    endif
+
+    print*,''
+    do i = 1,blocksize
+      print*,dfdu(i,:) 
+    enddo
+
+    call jacobian(rhs_blocked2_dual, u, f, dfdu1, err=err)
+    if (allocated(err)) then
+      print*,err
+      stop 1
+    endif
+
+    print*,''
+    do i = 1,nz
+      print*,dfdu1(i,:) 
+    enddo
+
+  end subroutine
+
+  subroutine rhs_blocked1_dual(u, du)
+    use forwarddiff
+    type(dual), intent(in) :: u(:)
+    type(dual), intent(out) :: du(:)
+    integer :: i
+
+    du(1) = u(1) + u(2)*u(1)
+    du(2) = u(2) + u(2)*u(1)
+
+    du(3) = u(3)*u(4) + u(3)
+    du(4) = u(4) + u(3)*u(3)
+
+    du(5) = 2.0_wp*u(5) + 0.5_wp*u(6)
+    du(6) = u(5) + u(6)*u(6)
+
+  end subroutine
+
+  subroutine rhs_blocked2_dual(u, du)
+    use forwarddiff
+    type(dual), intent(in) :: u(:)
+    type(dual), intent(out) :: du(:)
+    integer :: i
+
+    du(1) = u(1) + u(2)*u(1)
+    du(2) = u(2) + u(2)*u(1)
+    du(3) = u(3) + u(3)*u(1)
+
+    du(4) = u(4) + u(5)*u(6)
+    du(5) = 2.0_wp*u(5) + 0.5_wp*u(6)
+    du(6) = u(5) + u(6)*u(6)
+
   end subroutine
 
 end program

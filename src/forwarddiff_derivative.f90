@@ -78,71 +78,78 @@ contains
 
   end subroutine
 
-  subroutine jacobian(fcn, x, f, dfdx, bandwidth, err)
+  subroutine jacobian(fcn, x, f, dfdx, jt, bandwidth, blocksize, err)
+    use forwarddiff_const, only: DenseJacobian, BandedJacobian, BlockDiagonalJacobian
     procedure(jacobian_sig) :: fcn
     real(wp), intent(in) :: x(:)
     real(wp), intent(out) :: f(:)
     real(wp), intent(out) :: dfdx(:,:)
+    integer, optional, intent(in) :: jt
     integer, optional, intent(in) :: bandwidth
+    integer, optional, intent(in) :: blocksize
     character(:), allocatable :: err
 
-    ! real(wp), allocatable :: JacT(:,:) 
-    integer :: bandwidth_, hbw
-    type(dual) :: xx(size(x))
-    type(dual) :: ff(size(x))
-    integer :: i, j, ii, jj, kk
+    integer :: jt_
 
-    bandwidth_ = size(x)
-    if (present(bandwidth)) then
-      bandwidth_ = bandwidth
-      if (bandwidth_ > size(x)) then
-        err = '`bandwidth` can not be > size(x).'
-        return
-      endif
-      if (bandwidth_ < 1) then
-        err = '`bandwidth` can not be < 1.'
-        return
-      endif
-      if (mod(bandwidth_,2) == 0) then
-        err = '`bandwidth` must be odd.'
-        return
-      endif
-    endif
-
+    ! Check dimensions work out
     if (size(x) /= size(f)) then
       err = 'Output `f` array is not the right size.'
       return
     endif
-    if (bandwidth_ /= size(dfdx,1) .or. size(x) /= size(dfdx,2)) then
+
+    ! Determine type of jacobian
+    if (present(jt)) then
+      jt_ = jt
+    else
+      jt_ = DenseJacobian
+    endif
+
+    if (jt_ == DenseJacobian) then
+      call jacobian_dense(fcn, x, f, dfdx, err)
+      if (allocated(err)) return
+    elseif (jt_ == BandedJacobian) then
+      if (.not.present(bandwidth)) then
+        err = '`bandwidth` must be an argument when computing a banded jacobian.'
+        return
+      endif
+      call jacobian_banded(fcn, x, f, dfdx, bandwidth, err)
+      if (allocated(err)) return
+    elseif (jt_ == BlockDiagonalJacobian) then
+      if (.not.present(blocksize)) then
+        err = '`blocksize` must be an argument when computing a block diagonal jacobian.'
+        return
+      endif
+      call jacobian_blockdiagonal(fcn, x, f, dfdx, blocksize, err)
+      if (allocated(err)) return
+    endif
+
+  end subroutine
+
+  subroutine jacobian_dense(fcn, x, f, dfdx, err)
+    procedure(jacobian_sig) :: fcn
+    real(wp), intent(in) :: x(:)
+    real(wp), intent(out) :: f(:)
+    real(wp), intent(out) :: dfdx(:,:)
+    character(:), allocatable :: err
+
+    type(dual) :: xx(size(x))
+    type(dual) :: ff(size(x))
+    integer :: i, j
+
+    if (size(x) /= size(dfdx,1) .or. size(x) /= size(dfdx,2)) then
       err = 'Output `dfdx` array is not the right size.'
       return
     endif
 
-    ! allocate(JacT(size(x),bandwidth_))
-
     ! Set x
     xx%val = x
 
-    ! Allocate dual number
+    ! Allocate and seed dual
     do i = 1,size(x)
-      allocate(xx(i)%der(bandwidth_))
+      allocate(xx(i)%der(size(x)))
       xx(i)%der = 0.0_wp
+      xx(i)%der(i) = 1.0_wp
     enddo
-
-    ! Seed the dual number
-    j = 1
-    outer : do
-      do i = 1,bandwidth_
-        if (j > size(x)) exit outer 
-        xx(j)%der(i) = 1.0_wp
-        j = j + 1
-      enddo
-    enddo outer
-
-    do i = 1,size(x)
-      print*,xx(i)%der(:)
-    enddo
-    print*,"hi"
 
     ! Do differentiation
     call fcn(xx, ff)
@@ -150,65 +157,180 @@ contains
     ! Unpack f(x)
     f = ff%val
 
-    ! Unpack jacobian
-    ! do j = 1,bandwidth_
-    !   do i = 1,size(x)
-    !     JacT(i,j) = ff(i)%der(j)
-    !     ! dfdx(j,i) = ff(i)%der(j)
-    !     ! dfdx(1,:) is the first column of the jacobian
-    !   enddo
-    ! enddo
-    ! JacT(:,1) is the first column of the jacobian
+    ! Unpack jacobian.
+    ! | df(1,1) df(1,2) df(1,3) |
+    ! | df(2,1) df(2,2) df(2,3) |
+    ! | df(3,1) df(3,2) df(3,3) |
 
-    ! We now want to disentangle the jacobian
-    ! dfdx(1,:) is a row. It should contain diagonals. Row 1 is the highest diagonal
+    do j = 1,size(x)
+      do i = 1,size(x)
+        dfdx(i,j) = ff(i)%der(j)
+      enddo
+    enddo
+  
+  end subroutine
 
-    ! First row of dfdx
-    ! dfdx(1,1:hbw) = 0.0_dp, unused
-    ! JacT(1,hbw+1) should be at dfdx(1,hbw+1)
-    ! JacT(2,hbw+2) should be at dfdx(1,hbw+2)
-    ! JacT(3,hbw) should be at dfdx(1,hbw+3)
-    ! JacT(4,hbw+1) should be at dfdx(1,hbw+4)
-    ! JacT(5,hbw+2) should be at dfdx(1,hbw+5)
-    ! JacT(6,hbw-1) should be at dfdx(1,hbw+6)
+  subroutine jacobian_banded(fcn, x, f, dfdx, bandwidth, err)
+    procedure(jacobian_sig) :: fcn
+    real(wp), intent(in) :: x(:)
+    real(wp), intent(out) :: f(:)
+    real(wp), intent(out) :: dfdx(:,:)
+    integer, intent(in) :: bandwidth
+    character(:), allocatable :: err
 
-    ! Second row
+    type(dual) :: xx(size(x))
+    type(dual) :: ff(size(x))
+    integer :: hbw
+    integer :: i, j, ii, jj, kk
 
-    ! JacT(1,bw) is first diagonal entry
+    ! Check bandwidth
+    if (bandwidth > size(x)) then
+      err = '`bandwidth` can not be > size(x).'
+      return
+    endif
+    if (bandwidth < 1) then
+      err = '`bandwidth` can not be < 1.'
+      return
+    endif
+    if (mod(bandwidth,2) == 0) then
+      err = '`bandwidth` must be odd.'
+      return
+    endif
 
-    if (present(bandwidth)) then
+    if (bandwidth /= size(dfdx,1) .or. size(x) /= size(dfdx,2)) then
+      err = 'Output `dfdx` array is not the right size.'
+      return
+    endif
 
-      hbw = (bandwidth_ - 1)/2 ! halfbandwidth 
-      j = 1
-      outer1 : do
-        do i = 1,bandwidth_
-          if (j > size(x)) exit outer1
-          do jj = -hbw,hbw
-            kk = jj + hbw + 1
-            ii = j + jj
-            if (ii < 1) then
-              dfdx(kk,j) = 0.0_wp
-            elseif (ii > size(x)) then
-              dfdx(kk,j) = 0.0_wp
-            else
-              ! dfdx(kk,j) = JacT(ii,i)
-              dfdx(kk,j) = ff(ii)%der(i)
-            endif
-          enddo
-          j = j + 1
+    ! Set x
+    xx%val = x
+
+    ! Allocate dual number
+    do i = 1,size(x)
+      allocate(xx(i)%der(bandwidth))
+      xx(i)%der = 0.0_wp
+    enddo
+
+    ! Seed the dual number
+    j = 1
+    outer : do
+      do i = 1,bandwidth
+        if (j > size(x)) exit outer 
+        xx(j)%der(i) = 1.0_wp
+        j = j + 1
+      enddo
+    enddo outer
+
+    ! Do differentiation
+    call fcn(xx, ff)
+
+    ! Unpack f(x)
+    f = ff%val
+
+    ! Unpack banded jacobian
+    ! In this case, we load diagonals of jacobian into each row of dfdx.
+    ! So, dfdx(1,:) is the "highest" diagonal. Illustration:
+    !
+    ! | df(1,1) df(1,2) 0       0       0       |      
+    ! | df(2,1) df(2,2) df(2,3) 0       0       |  ->  | 0       df(1,2) df(2,3) df(3,4) df(4,5) |
+    ! | 0       df(3,2) df(3,3) df(3,4) 0       |  ->  | df(1,1) df(2,2) df(3,3) df(4,4) df(5,5) |
+    ! | 0       0       df(4,3) df(4,4) df(4,5) |  ->  | df(2,1) df(3,2) df(4,3) df(5,4) 0       |
+    ! | 0       0       0       df(5,4) df(5,5) |
+    !
+
+    hbw = (bandwidth - 1)/2 ! halfbandwidth 
+    j = 1
+    outer1 : do
+      do i = 1,bandwidth
+        if (j > size(x)) exit outer1
+        do jj = -hbw,hbw
+          kk = jj + hbw + 1
+          ii = j + jj
+          if (ii < 1) then
+            dfdx(kk,j) = 0.0_wp
+          elseif (ii > size(x)) then
+            dfdx(kk,j) = 0.0_wp
+          else
+            dfdx(kk,j) = ff(ii)%der(i)
+          endif
         enddo
-      enddo outer1
+        j = j + 1
+      enddo
+    enddo outer1
 
-    else
-      
-      ! Dense matrix
-      do j = 1,bandwidth_
-        do i = 1,size(x)
-          dfdx(i,j) = ff(i)%der(j)
+  end subroutine
+
+  subroutine jacobian_blockdiagonal(fcn, x, f, dfdx, blocksize, err)
+    procedure(jacobian_sig) :: fcn
+    real(wp), intent(in) :: x(:)
+    real(wp), intent(out) :: f(:)
+    real(wp), intent(out) :: dfdx(:,:)
+    integer, intent(in) :: blocksize
+    character(:), allocatable :: err
+
+    type(dual) :: xx(size(x))
+    type(dual) :: ff(size(x))
+    integer :: i, j, ii, jj
+
+    ! Check blocksize
+    if (blocksize > size(x)) then
+      err = '`blocksize` can not be > size(x).'
+      return
+    endif
+    if (blocksize < 1) then
+      err = '`blocksize` can not be < 1.'
+      return
+    endif
+
+    if (mod(size(x),blocksize) /= 0) then
+      err = 'size(x) must be an integer multiple of `blocksize`.'
+      return
+    endif
+
+    if (blocksize /= size(dfdx,1) .or. size(x) /= size(dfdx,2)) then
+      err = 'Output `dfdx` array is not the right size.'
+      return
+    endif
+
+    ! Set x
+    xx%val = x
+
+    ! Allocate dual number
+    do i = 1,size(x)
+      allocate(xx(i)%der(blocksize))
+      xx(i)%der = 0.0_wp
+    enddo
+
+    ! Seed the dual number
+    j = 1
+    outer : do
+      do i = 1,blocksize
+        if (j > size(x)) exit outer 
+        xx(j)%der(i) = 1.0_wp
+        j = j + 1
+      enddo
+    enddo outer
+
+    ! Do differentiation
+    call fcn(xx, ff)
+
+    ! Unpack f(x)
+    f = ff%val
+
+    ! Unpack block jacobian
+    !
+    ! | df(1,1) df(1,2) 0       0       |      
+    ! | df(2,1) df(2,2) 0       0       |  ->  | df(1,1) df(1,2) df(3,3) df(3,4) |
+    ! | 0       0       df(3,3) df(3,4) |  ->  | df(2,1) df(2,2) df(4,3) df(4,4) |
+    ! | 0       0       df(4,3) df(4,4) |
+    do ii = 1,size(x)/blocksize
+      jj = (ii - 1)*blocksize
+      do i = 1,blocksize
+        do j = 1,blocksize
+          dfdx(i,j+jj) = ff(i+jj)%der(j)
         enddo
       enddo
-    
-    endif
+    enddo
 
   end subroutine
 
