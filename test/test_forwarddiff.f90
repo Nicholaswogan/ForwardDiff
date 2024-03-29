@@ -1,8 +1,9 @@
 program test_forwarddiff
   use forwarddiff, only: wp, derivative, grad, jacobian
   implicit none
+
   call test_dual()
-  call test_jacobian1()
+  call test_jacobian()
 
 contains
 
@@ -43,7 +44,7 @@ contains
   end subroutine
 
   function func_operators(x) result(res)
-    use forwarddiff_dual
+    use forwarddiff
     type(dual), intent(in) :: x
     type(dual) :: res
 
@@ -56,7 +57,7 @@ contains
   end function
 
   function func_intrinsics1(x) result(res)
-    use forwarddiff_dual
+    use forwarddiff
     type(dual), intent(in) :: x
     type(dual) :: res
 
@@ -72,7 +73,7 @@ contains
   end function
 
   function func_intrinsics2(x) result(res)
-    use forwarddiff_dual
+    use forwarddiff
     type(dual), intent(in) :: x
     type(dual) :: res
 
@@ -89,48 +90,48 @@ contains
   end function
 
   function func_grad1(x) result(res)
-    use forwarddiff_dual
+    use forwarddiff
     type(dual), intent(in) :: x(:)
     type(dual) :: res
     res = x(1)*x(1)*x(2) + x(1) + x(2)
   end function
 
   function func_grad2(x) result(res)
-    use forwarddiff_dual
+    use forwarddiff
     type(dual), intent(in) :: x(:)
     type(dual) :: res
     res = sum(x*3.14_wp)
   end function
 
-  subroutine test_jacobian1()
+  subroutine test_jacobian()
     real(wp) :: u(3), f(3), dfdu(3,3)
     real(wp) :: f1(3), dfdu1(3,3)
     character(:), allocatable :: err
 
     u = [1.0_wp, 2.0_wp, 3.0_wp]
-    call jacobian(rhs_rober_dual, u, f, dfdu, err)
+    call jacobian(rhs_rober_dual, u, f, dfdu, err=err)
 
-    print*,f
+    ! print*,f
     print*,''
-    print*,dfdu(:,1)
-    print*,dfdu(:,2)
-    print*,dfdu(:,3)
+    print*,dfdu(1,:)
+    print*,dfdu(2,:)
+    print*,dfdu(3,:)
 
     ! Check against analytical solution
     call rhs_rober(u, f1)
     call jac_rober(u, dfdu1)
 
     if (.not. all(f == f1)) then
-      error stop "test_jacobian1 failed"
+      error stop "test_jacobian failed"
     endif
     if (.not. all(dfdu == dfdu1)) then
-      error stop "test_jacobian1 failed"
+      error stop "test_jacobian failed"
     endif
 
   end subroutine
 
   subroutine rhs_rober_dual(u, du)
-    use forwarddiff_dual
+    use forwarddiff
     type(dual), intent(in) :: u(:)
     type(dual), intent(out) :: du(:)
 
@@ -145,7 +146,6 @@ contains
   end subroutine
 
   subroutine rhs_rober(u, du)
-    use forwarddiff_dual
     real(wp), intent(in) :: u(:)
     real(wp), intent(out) :: du(:)
 
@@ -167,9 +167,9 @@ contains
                            k2 = 3.0e7_wp, &
                            k3 = 1.0e4_wp
     
-    pd(:,1) = [-k1, k1, 0.0_wp]
-    pd(:,2) = [k3*u(3), -2.0_wp*k2*u(2) - k3*u(3), 2.0_wp*k2*u(2)]
-    pd(:,3) = [k3*u(2), -k3*u(2), 0.0_wp]
+    pd(:,1) = [-k1, k1, 0.0_wp] ! column 1
+    pd(:,2) = [k3*u(3), -2.0_wp*k2*u(2) - k3*u(3), 2.0_wp*k2*u(2)] ! column 2
+    pd(:,3) = [k3*u(2), -k3*u(2), 0.0_wp] ! column 3
     
   end subroutine
 
