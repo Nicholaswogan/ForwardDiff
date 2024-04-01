@@ -1,5 +1,5 @@
 program test_forwarddiff
-  use forwarddiff, only: wp, derivative, grad, jacobian
+  use forwarddiff, only: wp, derivative, gradient, jacobian
   implicit none
 
   call test_dual()
@@ -30,12 +30,12 @@ contains
     write(2) f, dfdx
 
     xx = [1.0_wp, 2.0_wp]
-    call grad(func_grad1, xx, f, dfdx1, err)
+    call gradient(func_grad1, xx, f, dfdx1, err)
     print*,f, dfdx1
     write(2) f, dfdx1
 
     xx = [3.0_wp, 4.0_wp]
-    call grad(func_grad2, xx, f, dfdx1, err)
+    call gradient(func_grad2, xx, f, dfdx1, err)
     print*,f, dfdx1
     write(2) f, dfdx1
 

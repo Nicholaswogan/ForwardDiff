@@ -1,10 +1,9 @@
 
-program main
+program test_sparse
   use forwarddiff, only: wp, jacobian
   implicit none
-  integer, parameter :: nz = 6
 
-  ! call test_banded()
+  call test_banded()
   call test_blockdiagonal1()
   call test_blockdiagonal2()
 
@@ -12,11 +11,14 @@ contains
 
   subroutine test_banded()
     use forwarddiff, only: BandedJacobian
+    integer, parameter :: nz = 6
     integer, parameter :: bandwidth = 3
     real(wp) :: u(nz), f(nz), dfdu(bandwidth,nz)
     real(wp) :: f1(nz), dfdu1(nz,nz)
     character(:), allocatable :: err
     integer :: i
+
+    print*,'test_banded'
     
     do i = 1,nz
       u(i) = i
@@ -27,17 +29,21 @@ contains
       stop
     endif
 
-    call rhs_banded(u, f1)
-    call jac_banded(u, dfdu1)
-
     do i = 1,bandwidth
       print*,dfdu(i,:)
     enddo
     print*,''
 
+    call jacobian(rhs_banded_dual, u, f1, dfdu1, err=err)
+    if (allocated(err)) then
+      print*,err
+      stop 1
+    endif
+
     do i = 1,nz
       print*,dfdu1(i,:)
     enddo
+    print*,''
 
   end subroutine
 
@@ -47,52 +53,24 @@ contains
     type(dual), intent(out) :: du(:)
     integer :: i
 
-    du(1) = 3*u(2) - u(1)
-    do i = 2,nz-1
-      du(i) = 3*u(i+1) - 2.0_wp*u(i) + u(i-1)
+    du(1) = 3.0_wp*u(2) - u(1)
+    do i = 2,size(u)-1
+      du(i) = 3.0_wp*u(i+1) - 2.0_wp*u(i) + u(i-1)
     enddo
-    du(nz) = - u(nz) + u(nz-1)
+    du(size(u)) = - u(size(u)) + u(size(u)-1)
 
-  end subroutine
-
-  subroutine rhs_banded(u, du)
-    real(wp), intent(in) :: u(:)
-    real(wp), intent(out) :: du(:)
-    integer :: i
-
-    du(1) = 3*u(2) - u(1)
-    do i = 2,nz-1
-      du(i) = 3*u(i+1) - 2.0_wp*u(i) + u(i-1)
-    enddo
-    du(nz) = - u(nz) + u(nz-1)
-
-  end subroutine
-  
-  subroutine jac_banded(u, pd)
-    real(wp), intent(in) :: u(:)
-    real(wp), intent(out) :: pd(:,:)
-    integer :: i
-
-    pd = 0.0_wp
-    pd(1,1) = -1.0_wp
-    pd(2,1) = 1.0_wp
-    do i = 2,nz-1
-      pd(i,i) = -2.0_wp
-      pd(i+1,i) = 1.0_wp
-      pd(i-1,i) = 3.0_wp
-    enddo
-    pd(nz,nz) = -1.0_wp
-    pd(nz-1,nz) = 3.0_wp
-    
   end subroutine
 
   subroutine test_blockdiagonal1()
     use forwarddiff, only: BlockDiagonalJacobian
+    integer, parameter :: nz = 6
     integer, parameter :: blocksize = 2
     real(wp) :: u(nz), f(nz), dfdu(blocksize,nz)
-    real(wp) :: dfdu1(nz,nz)
+    real(wp) :: f1(nz), dfdu1(nz,nz)
     character(:), allocatable :: err
     integer :: i
+
+    print*,'test_blockdiagonal1'
 
     do i = 1,nz
       u(i) = i
@@ -103,31 +81,34 @@ contains
       stop 1
     endif
 
-    print*,''
     do i = 1,blocksize
       print*,dfdu(i,:) 
     enddo
+    print*,''
 
-    call jacobian(rhs_blocked1_dual, u, f, dfdu1, err=err)
+    call jacobian(rhs_blocked1_dual, u, f1, dfdu1, err=err)
     if (allocated(err)) then
       print*,err
       stop 1
     endif
 
-    print*,''
     do i = 1,nz
       print*,dfdu1(i,:) 
     enddo
+    print*,''
 
   end subroutine
 
   subroutine test_blockdiagonal2()
     use forwarddiff, only: BlockDiagonalJacobian
+    integer, parameter :: nz = 6
     integer, parameter :: blocksize = 3
     real(wp) :: u(nz), f(nz), dfdu(blocksize,nz)
-    real(wp) :: dfdu1(nz,nz)
+    real(wp) :: f1(nz), dfdu1(nz,nz)
     character(:), allocatable :: err
     integer :: i
+
+    print*,'test_blockdiagonal2'
 
     do i = 1,nz
       u(i) = i
@@ -138,21 +119,21 @@ contains
       stop 1
     endif
 
-    print*,''
     do i = 1,blocksize
       print*,dfdu(i,:) 
     enddo
+    print*,''
 
-    call jacobian(rhs_blocked2_dual, u, f, dfdu1, err=err)
+    call jacobian(rhs_blocked2_dual, u, f1, dfdu1, err=err)
     if (allocated(err)) then
       print*,err
       stop 1
     endif
 
-    print*,''
     do i = 1,nz
       print*,dfdu1(i,:) 
     enddo
+    print*,''
 
   end subroutine
 

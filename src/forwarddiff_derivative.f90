@@ -5,7 +5,7 @@ module forwarddiff_derivative
   private
 
   public :: derivative, derivative_sig
-  public :: grad, grad_sig
+  public :: gradient, gradient_sig
   public :: jacobian, jacobian_sig
 
   abstract interface
@@ -15,7 +15,7 @@ module forwarddiff_derivative
       type(dual) :: res
     end function
 
-    function grad_sig(x) result(res)
+    function gradient_sig(x) result(res)
       import :: dual
       type(dual), intent(in) :: x(:)
       type(dual) :: res
@@ -41,8 +41,8 @@ contains
     dfdx = ff%der(1)
   end subroutine
 
-  subroutine grad(fcn, x, f, dfdx, err)
-    procedure(grad_sig) :: fcn
+  subroutine gradient(fcn, x, f, dfdx, err)
+    procedure(gradient_sig) :: fcn
     real(wp), intent(in) :: x(:)
     real(wp), intent(out) :: f
     real(wp), intent(out) :: dfdx(:)
