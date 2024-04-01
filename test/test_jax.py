@@ -44,14 +44,14 @@ def func_grad2(x):
 def test():
     fil = FortranFile('test.dat','r')
 
-    x = np.array(10.0,dtype=np.float32)
+    x = np.array(3.0,dtype=np.float32)
     f = func_operators(x)
     dfdx = jax.grad(func_operators)(x)
     f1, dfdx1 = fil.read_record(np.float64)
     print(f/f1,dfdx/dfdx1)
     assert np.isclose(f,f1) and np.isclose(dfdx,dfdx1)
 
-    x = np.array(10.0,dtype=np.float32)
+    x = np.array(2.0,dtype=np.float32)
     f = func_intrinsics1(x)
     dfdx = jax.grad(func_intrinsics1)(x)
     f1, dfdx1 = fil.read_record(np.float64)

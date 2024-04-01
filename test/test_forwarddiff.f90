@@ -14,12 +14,12 @@ contains
 
     open(unit=2,file='test.dat',status='replace',form='unformatted')
 
-    x = 10.0_wp
+    x = 3.0_wp
     call derivative(func_operators, x, f, dfdx)
     print*,f, dfdx
     write(2) f, dfdx
 
-    x = 10.0_wp
+    x = 2.0_wp
     call derivative(func_intrinsics1, x, f, dfdx)
     print*,f, dfdx
     write(2) f, dfdx
