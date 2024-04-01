@@ -49,8 +49,8 @@ contains
 
   subroutine rhs_banded_dual(u, du)
     use forwarddiff
-    type(dual), intent(in) :: u(:)
-    type(dual), intent(out) :: du(:)
+    type(dual), target, intent(in) :: u(:)
+    type(dual), target, intent(out) :: du(:)
     integer :: i
 
     du(1) = 3.0_wp*u(2) - u(1)
@@ -139,8 +139,8 @@ contains
 
   subroutine rhs_blocked1_dual(u, du)
     use forwarddiff
-    type(dual), intent(in) :: u(:)
-    type(dual), intent(out) :: du(:)
+    type(dual), target, intent(in) :: u(:)
+    type(dual), target, intent(out) :: du(:)
     integer :: i
 
     du(1) = u(1) + u(2)*u(1)
@@ -156,8 +156,8 @@ contains
 
   subroutine rhs_blocked2_dual(u, du)
     use forwarddiff
-    type(dual), intent(in) :: u(:)
-    type(dual), intent(out) :: du(:)
+    type(dual), target, intent(in) :: u(:)
+    type(dual), target, intent(out) :: du(:)
     integer :: i
 
     du(1) = u(1) + u(2)*u(1)

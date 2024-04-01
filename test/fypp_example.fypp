@@ -32,8 +32,8 @@ contains
     #:if NAME == 'dual'
     use forwarddiff
     #:endif
-    ${TYPE1}$, intent(in) :: u(:)
-    ${TYPE1}$, intent(out) :: du(:)
+    ${TYPE1}$, target, intent(in) :: u(:)
+    ${TYPE1}$, target, intent(out) :: du(:)
 
     ${TYPE1}$ :: tmp1, tmp2
 

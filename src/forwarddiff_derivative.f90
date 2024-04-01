@@ -17,14 +17,14 @@ module forwarddiff_derivative
 
     function gradient_sig(x) result(res)
       import :: dual
-      type(dual), intent(in) :: x(:)
+      type(dual), target, intent(in) :: x(:)
       type(dual) :: res
     end function
 
     subroutine jacobian_sig(x, f)
       import :: dual
-      type(dual), intent(in) :: x(:)
-      type(dual), intent(out) :: f(:)
+      type(dual), target, intent(in) :: x(:)
+      type(dual), target, intent(out) :: f(:)
     end subroutine
   end interface
 
@@ -46,7 +46,7 @@ contains
     real(wp), intent(in) :: x(:)
     real(wp), intent(out) :: f
     real(wp), intent(out) :: dfdx(:)
-    character(:), allocatable :: err
+    character(:), allocatable, intent(out) :: err
 
     type(dual) :: xx(size(x))
     type(dual) :: ff
@@ -87,7 +87,7 @@ contains
     integer, optional, intent(in) :: jt
     integer, optional, intent(in) :: bandwidth
     integer, optional, intent(in) :: blocksize
-    character(:), allocatable :: err
+    character(:), allocatable, intent(out) :: err
 
     integer :: jt_
 
@@ -130,7 +130,7 @@ contains
     real(wp), intent(in) :: x(:)
     real(wp), intent(out) :: f(:)
     real(wp), intent(out) :: dfdx(:,:)
-    character(:), allocatable :: err
+    character(:), allocatable, intent(out) :: err
 
     type(dual) :: xx(size(x))
     type(dual) :: ff(size(x))
@@ -176,7 +176,7 @@ contains
     real(wp), intent(out) :: f(:)
     real(wp), intent(out) :: dfdx(:,:)
     integer, intent(in) :: bandwidth
-    character(:), allocatable :: err
+    character(:), allocatable, intent(out) :: err
 
     type(dual) :: xx(size(x))
     type(dual) :: ff(size(x))
@@ -266,7 +266,7 @@ contains
     real(wp), intent(out) :: f(:)
     real(wp), intent(out) :: dfdx(:,:)
     integer, intent(in) :: blocksize
-    character(:), allocatable :: err
+    character(:), allocatable, intent(out) :: err
 
     type(dual) :: xx(size(x))
     type(dual) :: ff(size(x))

@@ -91,14 +91,14 @@ contains
 
   function func_grad1(x) result(res)
     use forwarddiff
-    type(dual), intent(in) :: x(:)
+    type(dual), target, intent(in) :: x(:)
     type(dual) :: res
     res = x(1)*x(1)*x(2) + x(1) + x(2)
   end function
 
   function func_grad2(x) result(res)
     use forwarddiff
-    type(dual), intent(in) :: x(:)
+    type(dual), target, intent(in) :: x(:)
     type(dual) :: res
     res = sum(x*3.14_wp)
   end function
@@ -132,8 +132,8 @@ contains
 
   subroutine rhs_rober_dual(u, du)
     use forwarddiff
-    type(dual), intent(in) :: u(:)
-    type(dual), intent(out) :: du(:)
+    type(dual), target, intent(in) :: u(:)
+    type(dual), target, intent(out) :: du(:)
 
     real(wp), parameter :: k1 = 0.04_wp, &
                            k2 = 3.0e7_wp, &
@@ -146,8 +146,8 @@ contains
   end subroutine
 
   subroutine rhs_rober(u, du)
-    real(wp), intent(in) :: u(:)
-    real(wp), intent(out) :: du(:)
+    real(wp), target, intent(in) :: u(:)
+    real(wp), target, intent(out) :: du(:)
 
     real(wp), parameter :: k1 = 0.04_wp, &
                            k2 = 3.0e7_wp, &
