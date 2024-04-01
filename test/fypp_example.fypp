@@ -1,0 +1,61 @@
+#:set TYPES = ['real(wp)', 'type(dual)']
+#:set NAMES = ['real', 'dual']
+#:set TYPES_NAMES = list(zip(TYPES, NAMES))
+
+program example
+  use forwarddiff, only: wp, jacobian
+  implicit none
+  interface rhs_robber
+    procedure :: rhs_rober_real
+    procedure :: rhs_rober_dual
+  end interface
+
+  call main()
+
+contains
+
+  subroutine main()
+    real(wp) :: u(3), f(3), dfdu(3,3)
+    character(:), allocatable :: err 
+    
+    ! Compute the jacobian
+    call jacobian(rhs_rober_dual, u, f, dfdu, err=err)
+    if (allocated(err)) then
+      print*,'err'
+      stop 1
+    endif
+
+  end subroutine
+
+  #:for TYPE1, NAME in TYPES_NAMES
+  subroutine rhs_rober_${NAME}$(u, du)
+    #:if NAME == 'dual'
+    use forwarddiff
+    #:endif
+    ${TYPE1}$, intent(in) :: u(:)
+    ${TYPE1}$, intent(out) :: du(:)
+
+    ${TYPE1}$ :: tmp1, tmp2
+
+    real(wp), parameter :: k1 = 0.04_wp, &
+                           k2 = 3.0e7_wp, &
+                           k3 = 1.0e4_wp
+    
+    ! An intermediate result
+    tmp1 = -k1*u(1)
+
+    ! An intermediate dual needs to be initialized if
+    ! first assignment is just a number
+    #:if NAME == 'dual'
+    tmp2 = dual(size(u(1)%der))
+    #:endif
+    tmp2 = 0.0_wp
+
+    du(1) = tmp1 + k3*u(2)*u(3)
+    du(2) =  k1*u(1) - k2*u(2)**2.0_wp - k3*u(2)*u(3)
+    du(3) =  k2*u(2)**2.0_wp + tmp2
+
+  end subroutine
+
+  #:endfor
+end program
