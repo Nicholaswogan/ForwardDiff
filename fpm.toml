@@ -1,0 +1,16 @@
+name = "forwarddiff"
+author = "Nicholas Wogan"
+maintainer = "Nicholas Wogan"
+license = "MIT"
+description = "Forward mode automatic differentiation for Fortran."
+homepage = "https://github.com/Nicholaswogan/forwarddiff"
+
+[fortran]
+source-form = "default"
+
+[library]
+source-dir = "src"
+
+[build]
+auto-executables = false
+auto-tests = true
