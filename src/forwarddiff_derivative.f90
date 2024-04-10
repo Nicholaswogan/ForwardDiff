@@ -9,43 +9,57 @@ module forwarddiff_derivative
   public :: jacobian, jacobian_sig
 
   abstract interface
+    !> Interface for the function input to the `derivative`
+    !> routine for computing the derivative of scalar 
+    !> functions.
     function derivative_sig(x) result(res)
       import :: dual
-      type(dual), intent(in) :: x
-      type(dual) :: res
+      type(dual), intent(in) :: x !! Input scalar
+      type(dual) :: res !! Resulting scalar
     end function
 
+    !> Interface for the function input to the `gradient`
+    !> subroutine for computing the gradient of a function
+    !> mapping a vector to a scalar.
     function gradient_sig(x) result(res)
       import :: dual
-      type(dual), target, intent(in) :: x(:)
-      type(dual) :: res
+      type(dual), target, intent(in) :: x(:) !! Input vector
+      type(dual) :: res !! Resulting scalar
     end function
 
+    !> Interface for the function input to the `jacobian`
+    !> subroutine for computing the jacobian of a function
+    !> mapping a vector to a vector.
     subroutine jacobian_sig(x, f)
       import :: dual
-      type(dual), target, intent(in) :: x(:)
-      type(dual), target, intent(out) :: f(:)
+      type(dual), target, intent(in) :: x(:) !! Input vector
+      type(dual), target, intent(out) :: f(:) !! Resulting vector
     end subroutine
   end interface
 
 contains
 
+  !> Computes the derivative of input scalar function
+  !> `fcn` at the input `x`.
   subroutine derivative(fcn, x, f, dfdx)
-    procedure(derivative_sig) :: fcn
+    procedure(derivative_sig) :: fcn !! Input scalar function
     real(wp), intent(in) :: x
-    real(wp), intent(out) :: f
-    real(wp), intent(out) :: dfdx
+    real(wp), intent(out) :: f !! `fcn` evaluated at `x`
+    real(wp), intent(out) :: dfdx !! The derivative of `fcn` at `x`
     type(dual) :: ff
     ff = fcn(dual(x, [1.0_wp]))
     f = ff%val
     dfdx = ff%der(1)
   end subroutine
 
+  !> Computes the gradient of the input function
+  !> `fcn` at the input `x`.
   subroutine gradient(fcn, x, f, dfdx, err)
-    procedure(gradient_sig) :: fcn
+    procedure(gradient_sig) :: fcn !! Input function mapping a vector to a scalar
     real(wp), intent(in) :: x(:)
-    real(wp), intent(out) :: f
-    real(wp), intent(out) :: dfdx(:)
+    real(wp), intent(out) :: f !! `fcn` evaluated at `x`
+    real(wp), intent(out) :: dfdx(:) !! The gradient of `fcn` at `x`
+    !> If an error occurs, `err` will be allocated with an error message.
     character(:), allocatable, intent(out) :: err
 
     type(dual) :: xx(size(x))
@@ -78,16 +92,55 @@ contains
 
   end subroutine
 
+  !> Computes the Jacobian of the input function `fcn
+  !> at the input `x`, with support for some sparse Jacobians. Only can
+  !> consider square Jacobians.
   subroutine jacobian(fcn, x, f, dfdx, jt, bandwidth, blocksize, err)
     use forwarddiff_const, only: DenseJacobian, BandedJacobian, BlockDiagonalJacobian
-    procedure(jacobian_sig) :: fcn
+    procedure(jacobian_sig) :: fcn !! Input function mapping a vector to a vector
     real(wp), intent(in) :: x(:)
-    real(wp), intent(out) :: f(:)
-    real(wp), intent(out) :: dfdx(:,:)
+    real(wp), intent(out) :: f(:) !! `fcn` evaluated at `x`
+    real(wp), intent(out) :: dfdx(:,:) 
+    !! The Jacobian of `fcn` evaluated at `x`. For dense Jacobians (`jt == DenseJacobian`),
+    !! `dfdx` has shape (n,n) where n is `size(x)`. The first dimension indexes rows 
+    !! of the Jacobian, while the second dimension indexes columns. For example,
+    !!
+    !!     | df(1,1) df(1,2) df(1,3) |
+    !! J = | df(2,1) df(2,2) df(2,3) |
+    !!     | df(3,1) df(3,2) df(3,3) |
+    !!
+    !! If the Jacobian is banded (`jt == BandedJacobian`), then `dfdx` has shape 
+    !! (bandwidth,n), where bandwidth is the Jacobian bandwidth. In this case, the
+    !! The diagonals of the Jacobian are loaded into the rows of `dfdx`
+    !!
+    !!     | df(1,1) df(1,2) 0       0       0       |    
+    !!     | df(2,1) df(2,2) df(2,3) 0       0       |  ->  | 0       df(1,2) df(2,3) df(3,4) df(4,5) |
+    !! J = | 0       df(3,2) df(3,3) df(3,4) 0       |  ->  | df(1,1) df(2,2) df(3,3) df(4,4) df(5,5) |
+    !!     | 0       0       df(4,3) df(4,4) df(4,5) |  ->  | df(2,1) df(3,2) df(4,3) df(5,4) 0       |
+    !!     | 0       0       0       df(5,4) df(5,5) |
+    !!
+    !! If the Jacobian is block-diagonal (`jt == BlockDiagonalJacobian`), then `dfdx` has
+    !! shape (blocksize,n) where blocksize is the blocksize of the Jacobian. In this case,
+    !! `dfdx` stores the Jacobian entries in the following way:
+    !!
+    !!     | df(1,1) df(1,2) 0       0       |      
+    !! J = | df(2,1) df(2,2) 0       0       |  ->  | df(1,1) df(1,2) df(3,3) df(3,4) |
+    !!     | 0       0       df(3,3) df(3,4) |  ->  | df(2,1) df(2,2) df(4,3) df(4,4) |
+    !!     | 0       0       df(4,3) df(4,4) |
     integer, optional, intent(in) :: jt
+    !! Jacobian sparsity indicator. The default is `jt = DenseJacobian`.
+    !! - If `jt == DenseJacobian`, then the algorithm assumes the Jacobian is dense.
+    !! - If `jt == BandedJacobian`, then the algorithm assumes the Jacobian is banded
+    !!   with `bandwidth`.
+    !! - If `jt == BlockDiagonalJacobian`, then the algorithm assumes the Jacobian is
+    !!   block diagonal with `blocksize`. Note that size(x) must be an integer multiple
+    !!   of `blocksize`.
     integer, optional, intent(in) :: bandwidth
+    !! The Jacobian bandwidth for `jt == BandedJacobian`
     integer, optional, intent(in) :: blocksize
+    !! The Jacobian blocksize for `jt == BlockDiagonalJacobian`
     character(:), allocatable, intent(out) :: err
+    !! If an error occurs, `err` will be allocated with an error message.
 
     integer :: jt_
 
@@ -121,6 +174,9 @@ contains
       endif
       call jacobian_blockdiagonal(fcn, x, f, dfdx, blocksize, err)
       if (allocated(err)) return
+    else
+      err = 'Invalid value for the Jacobian type indicator `jt`.'
+      return
     endif
 
   end subroutine
