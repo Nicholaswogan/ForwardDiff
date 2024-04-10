@@ -1,6 +1,6 @@
-# Forwarddiff
+# ForwardDiff
 
-Forwarddiff allows for the computation for derivatives, gradients and Jacobians of Fortran subroutines or functions using forward mode automatic differentiation (AD). To create this package I borrowed code, syntax and inspiration from [DNAD](https://github.com/joddlehod/dnad), [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl), and [a lecture series by Chris Rackauckas](https://book.sciml.ai/).
+ForwardDiff allows for the computation for derivatives, gradients and Jacobians of Fortran subroutines or functions using forward mode automatic differentiation (AD). To create this package I borrowed code, syntax and inspiration from [DNAD](https://github.com/joddlehod/dnad), [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl), and [a lecture series by Chris Rackauckas](https://book.sciml.ai/).
 
 ## Examples
 
