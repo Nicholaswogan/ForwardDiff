@@ -53,6 +53,7 @@ contains
     res = res*x + 2.0_wp*x + x*(-5.0_wp)
     res = res/x + 2.0_wp/x + x/5.0_wp
     res = res**x + res**1.5_wp
+    res = 10.0_wp**res
 
   end function
 

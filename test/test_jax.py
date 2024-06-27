@@ -8,6 +8,7 @@ def func_operators(x):
     res = res*x + 2.0*x + x*-5.0
     res = res/x + 2.0/x + x/5.0
     res = res**x + res**1.5
+    res = 10.0**res
     return res
 
 def func_intrinsics1(x):

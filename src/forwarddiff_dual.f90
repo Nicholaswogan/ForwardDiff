@@ -79,6 +79,7 @@ module forwarddiff_dual
   interface operator (**)
     module procedure :: pow_i
     module procedure :: pow_dr
+    module procedure :: pow_rd
     module procedure :: pow_dd
   end interface
 
@@ -498,6 +499,14 @@ contains
     pow_x = u%val**(r - 1.0_wp)
     res%val = u%val*pow_x
     res%der = r*pow_x*u%der
+  end function
+
+  elemental function pow_rd(r, u) result(res)
+    real(wp), intent(in) :: r
+    type(dual), intent(in) :: u
+    type(dual) :: res
+    res%val = r**u%val
+    res%der = log(r)*r**u%val*u%der
   end function
 
   elemental function pow_dd(u, v) result(res)
