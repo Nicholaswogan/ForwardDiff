@@ -189,6 +189,8 @@ contains
     !!     | 0       0       df(3,3) df(3,4) |  ->  | df(2,1) df(2,2) df(4,3) df(4,4) |
     !!     | 0       0       df(4,3) df(4,4) |
     type(JacobianWorkMemory), target, optional, intent(inout) :: wrk
+    !! Work memory for the calculation. If not provided, memory will by dynamically allocated
+    !! and destroyed during the calculation (slightly slower).
     integer, optional, intent(in) :: jt
     !! Jacobian sparsity indicator. The default is `jt = DenseJacobian`.
     !! - If `jt == DenseJacobian`, then the algorithm assumes the Jacobian is dense.
