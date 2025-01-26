@@ -4,6 +4,16 @@ module forwarddiff_derivative
   implicit none
   private
 
+  !> Work memory for the `jacobian` routine.
+  type :: JacobianWorkMemory
+    integer :: jt
+    type(dual), allocatable :: xx(:), ff(:)
+  end type
+  interface JacobianWorkMemory
+    module procedure :: create_JacobianWorkMemory
+  end interface
+
+  public :: JacobianWorkMemory
   public :: derivative, derivative_sig
   public :: gradient, gradient_sig
   public :: jacobian, jacobian_sig
@@ -92,10 +102,61 @@ contains
 
   end subroutine
 
+  function create_JacobianWorkMemory(n, jt, bandwidth, blocksize, err) result(wrk)
+    use forwarddiff_const, only: DenseJacobian, BandedJacobian, BlockDiagonalJacobian
+    integer, intent(in) :: n
+    integer, optional, intent(in) :: jt
+    integer, optional, intent(in) :: bandwidth
+    integer, optional, intent(in) :: blocksize
+    character(:), allocatable, intent(out) :: err
+    type(JacobianWorkMemory) :: wrk
+
+    integer :: i, jt_
+
+    ! Determine type of jacobian
+    if (present(jt)) then
+      jt_ = jt
+    else
+      jt_ = DenseJacobian
+    endif
+
+    wrk%jt = jt_
+    allocate(wrk%xx(n))
+    allocate(wrk%ff(n))
+    if (jt_ == DenseJacobian) then
+      do i = 1,n
+        allocate(wrk%xx(i)%der(n))
+        allocate(wrk%ff(i)%der(n))
+      enddo
+    elseif (jt_ == BandedJacobian) then
+      if (.not.present(bandwidth)) then
+        err = '`bandwidth` must be an argument when computing a banded jacobian.'
+        return
+      endif
+      do i = 1,n
+        allocate(wrk%xx(i)%der(bandwidth))
+        allocate(wrk%ff(i)%der(bandwidth))
+      enddo
+    elseif (jt_ == BlockDiagonalJacobian) then
+      if (.not.present(blocksize)) then
+        err = '`blocksize` must be an argument when computing a block diagonal jacobian.'
+        return
+      endif
+      do i = 1,n
+        allocate(wrk%xx(i)%der(blocksize))
+        allocate(wrk%ff(i)%der(blocksize))
+      enddo
+    else
+      err = 'Invalid value for the Jacobian type indicator `jt`.'
+      return
+    endif
+
+  end function
+
   !> Computes the Jacobian of the input function `fcn
   !> at the input `x`, with support for some sparse Jacobians. Only can
   !> consider square Jacobians.
-  subroutine jacobian(fcn, x, f, dfdx, jt, bandwidth, blocksize, err)
+  subroutine jacobian(fcn, x, f, dfdx, wrk, jt, bandwidth, blocksize, err)
     use forwarddiff_const, only: DenseJacobian, BandedJacobian, BlockDiagonalJacobian
     procedure(jacobian_sig) :: fcn !! Input function mapping a vector to a vector
     real(wp), intent(in) :: x(:)
@@ -127,6 +188,7 @@ contains
     !! J = | df(2,1) df(2,2) 0       0       |  ->  | df(1,1) df(1,2) df(3,3) df(3,4) |
     !!     | 0       0       df(3,3) df(3,4) |  ->  | df(2,1) df(2,2) df(4,3) df(4,4) |
     !!     | 0       0       df(4,3) df(4,4) |
+    type(JacobianWorkMemory), target, optional, intent(inout) :: wrk
     integer, optional, intent(in) :: jt
     !! Jacobian sparsity indicator. The default is `jt = DenseJacobian`.
     !! - If `jt == DenseJacobian`, then the algorithm assumes the Jacobian is dense.
@@ -143,6 +205,8 @@ contains
     !! If an error occurs, `err` will be allocated with an error message.
 
     integer :: jt_
+    type(JacobianWorkMemory), target :: wrk_tmp
+    type(JacobianWorkMemory), pointer :: wrk_ptr
 
     ! Check dimensions work out
     if (size(x) /= size(f)) then
@@ -157,22 +221,34 @@ contains
       jt_ = DenseJacobian
     endif
 
+    if (present(wrk)) then
+      wrk_ptr => wrk
+      if (wrk_ptr%jt /= jt_) then
+        err = 'The work memory has a Jacobian type with the `jt` input for the subroutine `jacobian`'
+        return
+      endif
+    else
+      wrk_tmp = JacobianWorkMemory(size(x), jt, bandwidth, blocksize, err)
+      if (allocated(err)) return
+      wrk_ptr => wrk_tmp
+    endif
+
     if (jt_ == DenseJacobian) then
-      call jacobian_dense(fcn, x, f, dfdx, err)
+      call jacobian_dense(fcn, x, f, dfdx, wrk_ptr, err)
       if (allocated(err)) return
     elseif (jt_ == BandedJacobian) then
       if (.not.present(bandwidth)) then
         err = '`bandwidth` must be an argument when computing a banded jacobian.'
         return
       endif
-      call jacobian_banded(fcn, x, f, dfdx, bandwidth, err)
+      call jacobian_banded(fcn, x, f, dfdx, wrk_ptr, bandwidth, err)
       if (allocated(err)) return
     elseif (jt_ == BlockDiagonalJacobian) then
       if (.not.present(blocksize)) then
         err = '`blocksize` must be an argument when computing a block diagonal jacobian.'
         return
       endif
-      call jacobian_blockdiagonal(fcn, x, f, dfdx, blocksize, err)
+      call jacobian_blockdiagonal(fcn, x, f, dfdx, wrk_ptr, blocksize, err)
       if (allocated(err)) return
     else
       err = 'Invalid value for the Jacobian type indicator `jt`.'
@@ -181,15 +257,16 @@ contains
 
   end subroutine
 
-  subroutine jacobian_dense(fcn, x, f, dfdx, err)
+  subroutine jacobian_dense(fcn, x, f, dfdx, wrk, err)
     procedure(jacobian_sig) :: fcn
     real(wp), intent(in) :: x(:)
     real(wp), intent(out) :: f(:)
     real(wp), intent(out) :: dfdx(:,:)
+    type(JacobianWorkMemory), target, intent(inout) :: wrk
     character(:), allocatable, intent(out) :: err
 
-    type(dual) :: xx(size(x))
-    type(dual) :: ff(size(x))
+    type(dual), pointer :: xx(:)
+    type(dual), pointer :: ff(:)
     integer :: i, j
 
     if (size(x) /= size(dfdx,1) .or. size(x) /= size(dfdx,2)) then
@@ -197,12 +274,14 @@ contains
       return
     endif
 
+    xx => wrk%xx
+    ff => wrk%ff
+    
     ! Set x
     xx%val = x
 
-    ! Allocate and seed dual
+    ! Seed dual
     do i = 1,size(x)
-      allocate(xx(i)%der(size(x)))
       xx(i)%der = 0.0_wp
       xx(i)%der(i) = 1.0_wp
     enddo
@@ -226,16 +305,17 @@ contains
   
   end subroutine
 
-  subroutine jacobian_banded(fcn, x, f, dfdx, bandwidth, err)
+  subroutine jacobian_banded(fcn, x, f, dfdx, wrk, bandwidth, err)
     procedure(jacobian_sig) :: fcn
     real(wp), intent(in) :: x(:)
     real(wp), intent(out) :: f(:)
     real(wp), intent(out) :: dfdx(:,:)
+    type(JacobianWorkMemory), target, intent(inout) :: wrk
     integer, intent(in) :: bandwidth
     character(:), allocatable, intent(out) :: err
 
-    type(dual) :: xx(size(x))
-    type(dual) :: ff(size(x))
+    type(dual), pointer :: xx(:)
+    type(dual), pointer :: ff(:)
     integer :: hbw
     integer :: i, j, ii, jj, kk
 
@@ -258,12 +338,14 @@ contains
       return
     endif
 
+    xx => wrk%xx
+    ff => wrk%ff
+
     ! Set x
     xx%val = x
 
     ! Allocate dual number
     do i = 1,size(x)
-      allocate(xx(i)%der(bandwidth))
       xx(i)%der = 0.0_wp
     enddo
 
@@ -316,16 +398,17 @@ contains
 
   end subroutine
 
-  subroutine jacobian_blockdiagonal(fcn, x, f, dfdx, blocksize, err)
+  subroutine jacobian_blockdiagonal(fcn, x, f, dfdx, wrk, blocksize, err)
     procedure(jacobian_sig) :: fcn
     real(wp), intent(in) :: x(:)
     real(wp), intent(out) :: f(:)
     real(wp), intent(out) :: dfdx(:,:)
+    type(JacobianWorkMemory), target, intent(inout) :: wrk
     integer, intent(in) :: blocksize
     character(:), allocatable, intent(out) :: err
 
-    type(dual) :: xx(size(x))
-    type(dual) :: ff(size(x))
+    type(dual), pointer :: xx(:)
+    type(dual), pointer :: ff(:)
     integer :: i, j, ii, jj
 
     ! Check blocksize
@@ -348,12 +431,14 @@ contains
       return
     endif
 
+    xx => wrk%xx
+    ff => wrk%ff
+
     ! Set x
     xx%val = x
 
     ! Allocate dual number
     do i = 1,size(x)
-      allocate(xx(i)%der(blocksize))
       xx(i)%der = 0.0_wp
     enddo
 

@@ -105,12 +105,18 @@ contains
   end function
 
   subroutine test_jacobian()
+    use forwarddiff, only: JacobianWorkMemory
     real(wp) :: u(3), f(3), dfdu(3,3)
     real(wp) :: f1(3), dfdu1(3,3)
     character(:), allocatable :: err
+    type(JacobianWorkMemory) :: wrk
 
     u = [1.0_wp, 2.0_wp, 3.0_wp]
     call jacobian(rhs_rober_dual, u, f, dfdu, err=err)
+
+    ! Try with work memory preallocated as well
+    wrk = JacobianWorkMemory(3, err=err)
+    call jacobian(rhs_rober_dual, u, f, dfdu, wrk=wrk, err=err)
 
     ! print*,f
     print*,''
